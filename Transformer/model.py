@@ -12,7 +12,7 @@ class GraphTransformer(nn.Module):
         self.tst_token = nn.Parameter(torch.zeros(1, 1, dim_in))
         self.encoder = Encoder(n_layers=n_layers, dim_in=dim_in, dim_out=dim_out, dim_hidden=dim_hidden, dim_qk=dim_qk, dim_v=dim_v, 
                          dim_ff=dim_ff, n_heads=n_heads, drop_input=drop_input, dropout=dropout, drop_mu=drop_mu, last_layer_n_heads=last_layer_n_heads)
-        self.bias_codebook = nn.Parameter(torch.randn(6, dim_in))
+        self.bias_codebook = nn.Parameter(self.initialize_bias_codebook(6, dim_in))
         self.bias_mlp = nn.Sequential(
             nn.Linear(dim_in, dim_hidden), 
             nn.ReLU(),                                  
@@ -38,6 +38,22 @@ class GraphTransformer(nn.Module):
             bias_matrix[batch_idx] = current_bias_matrix
 
         return bias_matrix
+
+    def initialize_bias_codebook(self, num_positions, d_model):
+
+        positions = torch.arange(num_positions).float()
+        angle_rates = 1 / (10000 ** (torch.arange(0, d_model, 2).float() / d_model))
+        angle_rads = positions.unsqueeze(1) * angle_rates
+
+        pos_encoding = torch.zeros(num_positions, d_model)
+        pos_encoding[:, 0::2] = torch.sin(angle_rads)
+        
+        if d_model % 2 == 0:
+            pos_encoding[:, 1::2] = torch.cos(angle_rads)
+        else:
+            pos_encoding[:, 1::2] = torch.cos(angle_rads)[:, :-1] 
+
+        return pos_encoding
 
     def forward(self, batch):
 

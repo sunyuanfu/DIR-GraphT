@@ -18,9 +18,9 @@ class ScaledDotProductAttention(nn.Module):
         dim_qk = Q.size(-1)
         attn_score = torch.matmul(Q, K.transpose(2, 3)) / math.sqrt(dim_qk)  # tensor(bsize, nheads, |E|, |E|)
         attn_score = attn_score + bias
-        # mask[:, :, 0, 1:] = 0
-        # mask
         attn_score = attn_score.masked_fill(~mask, -1e9)  # tensor(bsize, nheads, |E|, |E|)
+        attn_score[:, :, 0, 2:] = -1e9
+        attn_score[:, :, 2:, 0] = -1e9
         attn_score = F.softmax(attn_score, dim=-1)  # tensor(bsize, nheads, |E|, |E|)
         output = torch.matmul(attn_score, V)  # tensor(bsize, nheads, |E|, d_v)
         return attn_score, output  # attn_score: tensor(bsize, nheads, |E|, |E|), output: tensor(bsize, nheads, |E|, d_v)
@@ -44,7 +44,6 @@ class SelfAttn(nn.Module):
         h = self.fc1(G)  # Tensor(bsize, |E|, 2*n_heads*d_qk)
         Q = h[..., :self.n_heads * self.d_qk].view(bsize, e, self.n_heads, self.d_qk)  # (bsize, |E|, n_heads, d_qk)
         K = h[..., self.n_heads * self.d_qk:].view(bsize, e, self.n_heads, self.d_qk)  # (bsize, |E|, n_heads, d_qk)
-
         V = self.fc_v(G)  # (bsize, |E|, n_heads*d_v)  
         V = V.masked_fill(~G_mask.unsqueeze(-1), 0)
         V = V.view(bsize, e, self.n_heads, self.d_v)  # (bsize, |E|, n_heads, d_v)

@@ -9,7 +9,7 @@ def set_cfg(cfg):
     # Basic options
     # ------------------------------------------------------------------------ #
     # Dataset name
-    cfg.dataset = 'cora'
+    cfg.dataset = 'arxiv-2023'
     # Cuda device number, used for machine with multiple gpus
     cfg.device = 'cuda:0'
     # Whether fix the running seed to remove randomness
@@ -91,19 +91,33 @@ def set_cfg(cfg):
     # GraphT Training options
     # ------------------------------------------------------------------------ #
     cfg.gt.train = CN()
-    cfg.gt.train.batch_size = 40
+
+    cfg.gt.train.batch_size = 100
+
     cfg.gt.train.epochs = 100
-    cfg.gt.train.n_layers = 6
+
+    cfg.gt.train.n_layers = 9
+
     cfg.gt.train.dim_hidden = 256
+
     cfg.gt.train.dim_qk = 256
+
     cfg.gt.train.dim_v = 256
+
     cfg.gt.train.dim_ff = 256
+
     cfg.gt.train.n_heads = 16
+
     cfg.gt.train.last_layer_n_heads = 16
-    cfg.gt.train.input_dropout_rate = 0.0
-    cfg.gt.train.dropout_rate = 0.0
+
+    cfg.gt.train.input_dropout_rate = 0.2
+
+    cfg.gt.train.dropout_rate = 0.2
+
     cfg.gt.train.weight_decay = 0.0
+
     cfg.gt.train.lr = 1e-4
+    
     return cfg
 
 

@@ -31,31 +31,31 @@ class GTTrainer():
         self.gt_n_heads = cfg.gt.train.n_heads
         self.gt_drop_input = cfg.gt.train.input_dropout_rate
         self.gt_dropout = cfg.gt.train.dropout_rate
-        self.gt_dropmu = cfg.gt.train.weight_decay
+        self.gt_dropmu = 0.0
         self.gt_lln_heads = cfg.gt.train.last_layer_n_heads
         self.lr = cfg.gt.train.lr
-        
+        self.weight_decay = cfg.gt.train.weight_decay
+
         data, num_classes = load_data(
             self.dataset_name, use_dgl=False, use_text=False, seed=self.seed)
-
         self.num_nodes = data.y.shape[0]
         self.num_classes = num_classes
         data.y = data.y.squeeze()
 
         print("Loading pretrained LM features for GraphTransformer ...")
-        LM_emb_path = f"prt_lm/{self.dataset_name}/{self.lm_model_name}-seed{self.seed}.emb"
-        print(f"LM_emb_path: {LM_emb_path}")
-        features = torch.from_numpy(np.array(
-            np.memmap(LM_emb_path, mode='r',
-                        dtype=np.float16,
-                        shape=(self.num_nodes, 768)))
-        ).to(torch.float32)
+        # LM_emb_path = f"prt_lm/{self.dataset_name}/{self.lm_model_name}-seed{self.seed}.emb"
+        # print(f"LM_emb_path: {LM_emb_path}")
+        # features = torch.from_numpy(np.array(
+        #     np.memmap(LM_emb_path, mode='r',
+        #                 dtype=np.float16,
+        #                 shape=(self.num_nodes, 768)))
+        # ).to(torch.float32)
 
-        self.features = features.to(self.device)
-        self.data = data.to(self.device)
+        # self.features = features.to(self.device)
+        self.data = data
+        self.features = data.x
         self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data)
         self.shortest_distances = compute_shortest_distances(self.all_subgraphs, self.max_neighbors)
-
         self.train_dataset, self.test_dataset, self.val_dataset = create_datasets(
             data=self.data,
             all_subgraphs=self.all_subgraphs,
@@ -64,18 +64,20 @@ class GTTrainer():
             labels=self.data.y
         )
 
-        self.train_loader = DataLoader(self.train_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False)
-        self.test_loader = DataLoader(self.test_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False)
-        self.val_loader = DataLoader(self.val_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False)
+        self.train_loader = DataLoader(self.train_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True, drop_last=True)
+        self.test_loader = DataLoader(self.test_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True)
+        self.val_loader = DataLoader(self.val_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True)
 
+        # self.data = self.data.to(self.device)
+        # self.features = self.features.to(self.device)
 
-        self.model = GraphTransformer(n_layers=self.gt_n_layers, dim_in=768, dim_out=self.num_classes, dim_hidden=self.gt_dim_hidden, 
+        self.model = GraphTransformer(n_layers=self.gt_n_layers, dim_in=self.features.size(1), dim_out=self.num_classes, dim_hidden=self.gt_dim_hidden, 
                                       dim_qk=self.gt_dim_qk, dim_v=self.gt_dim_v, dim_ff=self.gt_dim_ff, n_heads=self.gt_n_heads, drop_input=self.gt_drop_input, 
                                       dropout=self.gt_dropout, drop_mu=self.gt_dropmu, last_layer_n_heads=self.gt_lln_heads)
         self.model = self.model.to(self.device)
 
-        self.optimizer = torch.optim.Adam(
-            self.model.parameters(), lr=self.lr, weight_decay=0.0)
+        self.optimizer = torch.optim.AdamW(
+            self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
 
         trainable_params = sum(p.numel()
                                for p in self.model.parameters() if p.requires_grad)
@@ -102,6 +104,7 @@ class GTTrainer():
         self.model.train()
         self.optimizer.zero_grad()
         logits = self._forward(batch)
+        batch['label'] = batch['label'].to(logits.device)
         loss = self.loss_func(logits, batch['label'])
         train_acc = self.evaluator(logits, batch['label'])
         loss.backward()
@@ -112,9 +115,9 @@ class GTTrainer():
     def _evaluate(self, batch):
         self.model.eval()
         logits = self._forward(batch)
-        val_acc = self.evaluator(logits, batch['label'])
-        test_acc = self.evaluator(logits, batch['label'])
-        return val_acc, test_acc
+        batch['label'] = batch['label'].to(logits.device)
+        acc = self.evaluator(logits, batch['label'])
+        return acc
 
     @time_logger
     def train(self):
@@ -128,13 +131,9 @@ class GTTrainer():
             train_loss /= len(self.train_loader)
             train_acc /= len(self.train_loader)
 
-            val_acc, test_acc = 0, 0
-            for batch in self.val_loader:
-                val_acc_batch, test_acc_batch = self._evaluate(batch)
-                val_acc += val_acc_batch
-                test_acc += test_acc_batch
+            val_acc = 0
+            val_acc = sum(self._evaluate(batch) for batch in self.val_loader)
             val_acc /= len(self.val_loader)
-            test_acc /= len(self.val_loader)
 
             if self.stopper is not None:
                 es_flag, es_str = self.stopper.step(val_acc, self.model, epoch)
@@ -156,14 +155,12 @@ class GTTrainer():
         torch.save(self.model.state_dict(), self.ckpt)
         val_acc, test_acc = 0, 0
 
-        for batch in self.test_loader:
-            val_acc_batch, test_acc_batch = self._evaluate(batch)
-            val_acc += val_acc_batch
-            test_acc += test_acc_batch
+        test_acc = sum(self._evaluate(batch) for batch in self.test_loader)
+        val_acc = sum(self._evaluate(batch) for batch in self.val_loader)
 
-        val_acc /= len(self.test_loader)
+        val_acc /= len(self.val_loader)
         test_acc /= len(self.test_loader)
 
-        print(f'GraphT ValAcc: {val_acc:.4f}, TestAcc: {test_acc:.4f}\n')
+        print(f'GraphT+{self.dataset_name}+{self.gt_n_layers} ValAcc: {val_acc:.4f}, TestAcc: {test_acc:.4f}\n')
         res = {'val_acc': val_acc, 'test_acc': test_acc}
         return res

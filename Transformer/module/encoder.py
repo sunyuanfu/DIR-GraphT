@@ -31,7 +31,6 @@ class Encoder(nn.Module):
     def __init__(self, n_layers=12, dim_in=768, dim_out=6, dim_hidden=256, dim_qk=256, dim_v=256, dim_ff=256, n_heads=16, drop_input=0.,
                  dropout=0., drop_mu=0., last_layer_n_heads=16):
         super().__init__()
-        assert last_layer_n_heads >= 16
         self.input = Apply(
             nn.Sequential(
                 nn.Linear(dim_in, dim_hidden),
@@ -60,4 +59,4 @@ class Encoder(nn.Module):
             else:
                 G = layer(G, G_mask, G_bias)  # G.values: [bsize, max(n+e), dim_hidden]
         # G.values: [bsize, max(n+e), dim_hidden]
-        return attn_score, self.output(G)[:,1,:]  # attn_score : [bsize, last_layer_n_heads, |E|, |E|]   # self.output(G).values: [bsize, max(n+e), dim_out]
+        return attn_score, self.output(G)[:,0,:]  # attn_score : [bsize, last_layer_n_heads, |E|, |E|]   # self.output(G).values: [bsize, max(n+e), dim_out]
