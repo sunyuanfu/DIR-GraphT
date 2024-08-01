@@ -1,2 +1,4 @@
 # GraphT
-DIR Lab - GraphT - ICLR2025
+For conda env and data preparition, please see https://github.com/XiaoxinHe/TAPE/tree/main
+
+Train GraphT: python trainGT.py
