@@ -64,21 +64,25 @@ def pad_neighbors(all_subgraphs, max_length):
         all_subgraphs[node_id]['mask'] = mask
     return all_subgraphs
 
-def generate_all_subgraphs(data, hop=2, max_nodes_per_hop=100):
+def generate_all_subgraphs(data, hop=2, max_nodes_per_hop=100, level="node"):
     all_subgraphs = {}
-    num_nodes = data.num_nodes
     max_neighbors = 0
-
-    for node_id in tqdm(range(num_nodes), desc="Generating Subgraphs"):
-        edge_index, neighbors = get_neighbors(data, node_id, hop, max_nodes_per_hop)
-        neighbors = torch.tensor(neighbors, dtype=torch.long)
-        mask = torch.ones(len(neighbors), dtype=torch.float32)  
-        all_subgraphs[node_id] = {
-            'edge_index': edge_index,
-            'neighbors': neighbors,
-            'mask': mask
-        }
-        max_neighbors = max(max_neighbors, len(neighbors))
+    
+    if level == "node":
+        num_nodes = data.num_nodes
+        for node_id in tqdm(range(num_nodes), desc="Generating Subgraphs"):
+            edge_index, neighbors = get_neighbors(data, node_id, hop, max_nodes_per_hop)
+            neighbors = torch.tensor(neighbors, dtype=torch.long)
+            mask = torch.ones(len(neighbors), dtype=torch.float32)  
+            all_subgraphs[node_id] = {
+                'edge_index': edge_index,
+                'neighbors': neighbors,
+                'mask': mask
+            }
+            max_neighbors = max(max_neighbors, len(neighbors))
+    
+    else:
+        pass
 
     all_subgraphs = pad_neighbors(all_subgraphs, max_neighbors)
     return all_subgraphs, max_neighbors

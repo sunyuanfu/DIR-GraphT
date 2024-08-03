@@ -39,6 +39,9 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
     elif dataset == 'arxiv-2023':
         from .load_arxiv_2023 import get_raw_text_arxiv_2023 as get_raw_text
         num_classes = 40
+    elif dataset == 'chemhiv':
+        from .load_chem import get_raw_text_hiv as get_raw_text
+        num_classes = 2
     else:
         exit(f'Error: Dataset {dataset} not supported')
 
