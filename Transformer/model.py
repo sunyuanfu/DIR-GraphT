@@ -7,11 +7,13 @@ import numpy as np
 class GraphTransformer(nn.Module):
 
     def __init__(self, n_layers, dim_in, dim_out, dim_hidden, dim_qk, dim_v, dim_ff, n_heads, drop_input,
-                 dropout, drop_mu, last_layer_n_heads):
+                 dropout, drop_mu, last_layer_n_heads, level):
         super().__init__()
         self.tst_token = nn.Parameter(torch.zeros(1, 1, dim_in))
+        self.level = level
         self.encoder = Encoder(n_layers=n_layers, dim_in=dim_in, dim_out=dim_out, dim_hidden=dim_hidden, dim_qk=dim_qk, dim_v=dim_v, 
-                         dim_ff=dim_ff, n_heads=n_heads, drop_input=drop_input, dropout=dropout, drop_mu=drop_mu, last_layer_n_heads=last_layer_n_heads)
+                         dim_ff=dim_ff, n_heads=n_heads, drop_input=drop_input, dropout=dropout, drop_mu=drop_mu, last_layer_n_heads=last_layer_n_heads,
+                         level=self.level)
         self.bias_codebook = nn.Parameter(self.initialize_bias_codebook(6, dim_in))
         self.bias_mlp = nn.Sequential(
             nn.Linear(dim_in, dim_hidden), 

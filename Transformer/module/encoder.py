@@ -5,12 +5,13 @@ from .attn import SelfAttn as soft_SelfAttn
 
 
 class EncLayer(nn.Module):
-    def __init__(self, dim_in, dim_qk, dim_v, dim_ff, n_heads, dropout=0., drop_mu=0., return_attn=False):
+    def __init__(self, dim_in, dim_qk, dim_v, dim_ff, n_heads, dropout=0., drop_mu=0., return_attn=False, level="node"):
         super().__init__()
         self.return_attn = return_attn
+        self.level=level
         self.add = Add()
         self.ln = Apply(nn.LayerNorm(dim_in))
-        self.attn = soft_SelfAttn(n_heads=n_heads, d_in=dim_in, d_out=dim_in, d_qk=dim_qk, d_v=dim_v)  
+        self.attn = soft_SelfAttn(n_heads=n_heads, d_in=dim_in, d_out=dim_in, d_qk=dim_qk, d_v=dim_v, level=self.level)  
         self.ffn = Apply(nn.Sequential(
             nn.LayerNorm(dim_in),
             nn.Linear(dim_in, dim_ff),
@@ -29,7 +30,7 @@ class EncLayer(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self, n_layers=12, dim_in=768, dim_out=6, dim_hidden=256, dim_qk=256, dim_v=256, dim_ff=256, n_heads=16, drop_input=0.,
-                 dropout=0., drop_mu=0., last_layer_n_heads=16):
+                 dropout=0., drop_mu=0., last_layer_n_heads=16, level="node"):
         super().__init__()
         self.input = Apply(
             nn.Sequential(
@@ -37,11 +38,12 @@ class Encoder(nn.Module):
                 nn.Dropout(drop_input, inplace=True)
             )
         )
+        self.level = level
         layers = []
         for i in range(n_layers):
-            layers.append(EncLayer(dim_hidden, dim_qk, dim_v, dim_ff, n_heads, dropout, drop_mu, return_attn=False))
+            layers.append(EncLayer(dim_hidden, dim_qk, dim_v, dim_ff, n_heads, dropout, drop_mu, return_attn=False,level=self.level))
         layers.append(
-            EncLayer(dim_hidden, dim_qk, dim_v, dim_ff, last_layer_n_heads, dropout, drop_mu, return_attn=True))
+            EncLayer(dim_hidden, dim_qk, dim_v, dim_ff, last_layer_n_heads, dropout, drop_mu, return_attn=True,level=self.level))
         self.layers = nn.Sequential(*layers)
 
         self.output = Apply(

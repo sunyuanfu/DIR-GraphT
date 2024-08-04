@@ -24,17 +24,39 @@ class ScaledDotProductAttention(nn.Module):
         attn_score = F.softmax(attn_score, dim=-1)  # tensor(bsize, nheads, |E|, |E|)
         output = torch.matmul(attn_score, V)  # tensor(bsize, nheads, |E|, d_v)
         return attn_score, output  # attn_score: tensor(bsize, nheads, |E|, |E|), output: tensor(bsize, nheads, |E|, d_v)
+    
+class ScaledDotProductAttentionGraph(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    @staticmethod
+    def forward(Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor, mask: torch.Tensor, bias: torch.Tensor):
+        # Q, K: (bsize, nheads, |E|, d_qk)
+        # V: (bsize, n_heads, |E|, d_v)
+        # mask: = (bsize, 1, 1, |E|)
+
+        dim_qk = Q.size(-1)
+        attn_score = torch.matmul(Q, K.transpose(2, 3)) / math.sqrt(dim_qk)  # tensor(bsize, nheads, |E|, |E|)
+        attn_score = attn_score + bias
+        attn_score = attn_score.masked_fill(~mask, -1e9)  # tensor(bsize, nheads, |E|, |E|)
+        attn_score = F.softmax(attn_score, dim=-1)  # tensor(bsize, nheads, |E|, |E|)
+        output = torch.matmul(attn_score, V)  # tensor(bsize, nheads, |E|, d_v)
+        return attn_score, output  # attn_score: tensor(bsize, nheads, |E|, |E|), output: tensor(bsize, nheads, |E|, d_v)
 
 
 class SelfAttn(nn.Module):
-    def __init__(self, n_heads=15, d_in=64, d_out=64, d_qk=512, d_v=512):
+    def __init__(self, n_heads=15, d_in=64, d_out=64, d_qk=512, d_v=512, level="node"):
         super().__init__()
         self.n_heads = n_heads
         self.d_in = d_in
         self.d_out = d_out
         self.d_qk = d_qk
         self.d_v = d_v
-        self.scaled_dot_attention = ScaledDotProductAttention()
+        self.level = level
+        if self.level == "graph":
+            self.scaled_dot_attention = ScaledDotProductAttentionGraph()
+        else:
+            self.scaled_dot_attention = ScaledDotProductAttention()
         self.fc1 = nn.Linear(d_in, 2 * n_heads * d_qk)
         self.fc_v = nn.Linear(d_in, n_heads * d_v)
         self.fc_out = nn.Linear(n_heads * d_v, d_out)

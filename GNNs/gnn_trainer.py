@@ -29,15 +29,20 @@ class GNNTrainer():
         data, num_classes = load_data(
             self.dataset_name, use_dgl=False, use_text=False, seed=self.seed)
 
-        self.num_nodes = data.y.shape[0]
         self.num_classes = num_classes
+
+        #TODO: in case we ever use TA P E embeddings more integration is to be done
+        self.num_nodes = data.y.shape[0]
         data.y = data.y.squeeze()
 
         # ! Init gnn feature
         topk = 3 if self.dataset_name == 'pubmed' else 5
         if self.feature_type == 'ogb':
             print("Loading OGB features...")
-            features = data.x
+            if self.dataset_name == "chemhiv":
+                pass
+            else:
+                features = data.x
         elif self.feature_type == 'TA':
             print("Loading pretrained LM features (title and abstract) ...")
             LM_emb_path = f"prt_lm/{self.dataset_name}/{self.lm_model_name}-seed{self.seed}.emb"
