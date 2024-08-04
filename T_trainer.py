@@ -48,29 +48,31 @@ class GTTrainer():
 
         # self.features = features.to(self.device)
 
-        #TODO: deal with discrepancy b/w graph level and node level
         data, num_classes = load_data(
                 self.dataset_name, use_dgl=False, use_text=False, seed=self.seed)
         self.num_classes = num_classes
         self.data = data
-        if self.dataset_name != "chemhiv":
-            self.num_graphs = len(data[0])
-            labels = torch.tensor(data[1], dtype=torch.long)
-            #TODO: do the said feature conversion, first text then LLM
-            self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data, level="graph")
+        if self.dataset_name == "chemhiv":
+            self.num_graphs = len(self.data.datalist)
+            labels = torch.tensor(self.data.labels, dtype=torch.long)
+            self.features = self.data.features
+            u_node_texts_lst = self.data.u_node_texts_lst
+            self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data.datalist, level="graph")
         else:
             self.num_nodes = data.y.shape[0]
             data.y = data.y.squeeze()
             self.features = data.x
+            labels=self.data.y
             self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data, level="node")
-            self.shortest_distances = compute_shortest_distances(self.all_subgraphs, self.max_neighbors)
-            self.train_dataset, self.test_dataset, self.val_dataset = create_datasets(
-                data=self.data,
-                all_subgraphs=self.all_subgraphs,
-                shortest_distances=self.shortest_distances,
-                features=self.features,
-                labels=self.data.y
-            )
+
+        self.shortest_distances = compute_shortest_distances(self.all_subgraphs, self.max_neighbors)
+        self.train_dataset, self.test_dataset, self.val_dataset = create_datasets(
+            data=self.data,
+            all_subgraphs=self.all_subgraphs,
+            shortest_distances=self.shortest_distances,
+            features=self.features,
+            labels=labels
+        )
 
         self.train_loader = DataLoader(self.train_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True, drop_last=True)
         self.test_loader = DataLoader(self.test_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True)

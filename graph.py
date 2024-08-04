@@ -80,9 +80,16 @@ def generate_all_subgraphs(data, hop=2, max_nodes_per_hop=100, level="node"):
                 'mask': mask
             }
             max_neighbors = max(max_neighbors, len(neighbors))
-    
     else:
-        pass
+        num_graphs = len(data)
+        for graph_id in tqdm(range(num_graphs), desc="Generating Subgraphs"):
+            mask = torch.ones(len(data[graph_id].x), dtype=torch.float32)  
+            all_subgraphs[graph_id] = {
+                'edge_index': data[graph_id].edge_index,
+                'neighbors': data[graph_id].x,
+                'mask': mask
+            }
+            max_neighbors = max(max_neighbors, len(neighbors))
 
     all_subgraphs = pad_neighbors(all_subgraphs, max_neighbors)
     return all_subgraphs, max_neighbors

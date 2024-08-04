@@ -6,6 +6,7 @@ from gen_raw_graph import *
 from datasets import load_dataset
 import torch_geometric as pyg
 from scipy.sparse import csr_array
+from LMs.model import SentenceEncoder
 
 
 NAME_TO_SPLIT = {"chemblpre": "chembl_pretraining", "chempcba": "pcba", "chemhiv": "hiv"}
@@ -14,6 +15,17 @@ def get_chem_dataset(name):
     cache_dir = os.path.join(os.path.dirname(__file__), "../cache_data/dataset")
     data = load_dataset("haitengzhao/molecule_property_instruction", cache_dir=cache_dir, split=NAME_TO_SPLIT[name], )
     return data
+
+class HIVData:
+    def __init__(self, datalist, labels, u_node_texts_lst, train_mask, val_mask, test_mask):
+        self.datalist = datalist
+        self.labels = labels
+        self.u_node_texts_lst = u_node_texts_lst
+        self.train_mask = train_mask
+        self.val_mask = val_mask
+        self.test_mask = test_mask
+        self.encoder = SentenceEncoder("BERT")
+        self.features = self.encoder.encode(self.u_node_texts_lst)
 
 def get_raw_text_hiv(use_text=False, seed=0):
     data = get_chem_dataset("chemhiv")
@@ -27,7 +39,6 @@ def get_raw_text_hiv(use_text=False, seed=0):
         graph["label"] = label_lst[i]
         graph["split"] = split[i]
         graphs.append(graph)
-    #TODO: featurize text features using the OFA LLMs
 
     node_texts = []
     #edge_texts = []
@@ -58,7 +69,5 @@ def get_raw_text_hiv(use_text=False, seed=0):
         [x in split["valid"] for x in len(graph)])
     test_mask = torch.tensor(
         [x in split["test"] for x in len(graph)])
-    
-    #TODO: converting text features to vectorss
 
-    return (data, label_lst, train_mask, val_mask, test_mask), None
+    return HIVData(data, label_lst, u_node_texts_lst, train_mask, val_mask, test_mask), None

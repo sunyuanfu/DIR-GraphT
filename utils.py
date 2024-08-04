@@ -3,6 +3,7 @@ import numpy as np
 import time
 import datetime
 import pytz
+import torch
 
 
 def init_random_state(seed=0):
@@ -55,6 +56,23 @@ def init_path(dir_or_file):
     if not os.path.exists(path):
         mkdir_p(path)
     return dir_or_file
+
+def get_available_devices():
+    r"""Get IDs of all available GPUs.
+
+    Returns:
+        device (torch.device): Main device (GPU 0 or CPU).
+        gpu_ids (list): List of IDs of all GPUs that are available.
+    """
+    gpu_ids = []
+    if torch.cuda.is_available():
+        gpu_ids += [gpu_id for gpu_id in range(torch.cuda.device_count())]
+        device = torch.device(f'cuda:{gpu_ids[0]}')
+        torch.cuda.set_device(device)
+    else:
+        device = torch.device('cpu')
+
+    return device, gpu_ids
 
 
 # * ============================= Time Related =============================
