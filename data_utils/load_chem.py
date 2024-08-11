@@ -24,7 +24,7 @@ class HIVData:
         self.train_mask = train_mask
         self.val_mask = val_mask
         self.test_mask = test_mask
-        self.encoder = SentenceEncoder("BERT")
+        self.encoder = SentenceEncoder("ST")
         self.features = self.encoder.encode(self.u_node_texts_lst)
 
 def get_raw_text_hiv(use_text=False, seed=0):
