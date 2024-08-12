@@ -42,6 +42,9 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
     elif dataset == 'chemhiv':
         from .load_chem import get_raw_text_hiv as get_raw_text
         num_classes = 2
+    elif dataset == 'ogbg-ppa':
+        from .load_ogbppa import get_raw_text_ppa as get_raw_text
+        num_classes = 37
     else:
         exit(f'Error: Dataset {dataset} not supported')
 

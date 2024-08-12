@@ -39,10 +39,7 @@ class GNNTrainer():
         topk = 3 if self.dataset_name == 'pubmed' else 5
         if self.feature_type == 'ogb':
             print("Loading OGB features...")
-            if self.dataset_name == "chemhiv":
-                pass
-            else:
-                features = data.x
+            features = data.x
         elif self.feature_type == 'TA':
             print("Loading pretrained LM features (title and abstract) ...")
             LM_emb_path = f"prt_lm/{self.dataset_name}/{self.lm_model_name}-seed{self.seed}.emb"

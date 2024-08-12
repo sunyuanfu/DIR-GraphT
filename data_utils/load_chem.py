@@ -16,7 +16,7 @@ def get_chem_dataset(name):
     data = load_dataset("haitengzhao/molecule_property_instruction", cache_dir=cache_dir, split=NAME_TO_SPLIT[name], )
     return data
 
-class HIVData:
+class ChemData:
     def __init__(self, datalist, labels, u_node_texts_lst, train_mask, val_mask, test_mask):
         self.datalist = datalist
         self.labels = labels
@@ -70,4 +70,4 @@ def get_raw_text_hiv(use_text=False, seed=0):
     test_mask = torch.tensor(
         [x in split["test"] for x in len(graph)])
 
-    return HIVData(data, label_lst, u_node_texts_lst, train_mask, val_mask, test_mask), None
+    return ChemData(data, label_lst, u_node_texts_lst, train_mask, val_mask, test_mask), None

@@ -52,11 +52,10 @@ class GTTrainer():
                 self.dataset_name, use_dgl=False, use_text=False, seed=self.seed)
         self.num_classes = num_classes
         self.data = data
-        if self.dataset_name == "chemhiv":
+        if self.dataset_name == "chemhiv" or self.dataset_name == "ogbg-ppa":
             self.num_graphs = len(self.data.datalist)
             labels = torch.tensor(self.data.labels, dtype=torch.long)
             self.features = self.data.features
-            u_node_texts_lst = self.data.u_node_texts_lst
             self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data.datalist, level="graph")
         else:
             self.num_nodes = data.y.shape[0]
