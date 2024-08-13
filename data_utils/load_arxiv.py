@@ -22,10 +22,10 @@ def get_raw_text_arxiv(use_text=False, seed=0):
     data.val_mask = val_mask
     data.test_mask = test_mask
     # data.edge_index = data.adj_t.to_symmetric()
-    if not use_text:
-        return data, None
     data.adj = csr_array((torch.ones(len(data.edge_index[0])), (data.edge_index[0], data.edge_index[1]),),
                     shape=(data.num_nodes, data.num_nodes), )
+    if not use_text:
+        return data, None
     nodeidx2paperid = pd.read_csv(
         '/gpfsnyu/scratch/ys6310/vllm_bench/dataset/ogbn_arxiv/mapping/nodeidx2paperid.csv.gz', compression='gzip')
 
