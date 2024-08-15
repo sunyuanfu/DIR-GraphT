@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 from time import time
 import numpy as np
 torch.autograd.set_detect_anomaly(True)
@@ -105,10 +106,16 @@ class GTTrainer():
 
         from GNNs.gnn_utils import Evaluator
         self._evaluator = Evaluator(name=self.dataset_name)
-        self.evaluator = lambda pred, labels: self._evaluator.eval(
-            {"y_pred": pred.argmax(dim=-1, keepdim=True),
-             "y_true": labels.view(-1, 1)}
-        )["acc"]
+        if self.dataset_name == "chemhiv":
+            self.evaluator = lambda pred, labels: self._evaluator.eval(
+                {"y_pred": F.softmax(pred, dim=-1)[:, 1].unsqueeze(-1),
+                "y_true": labels.view(-1, 1)}
+            )["acc"]
+        else:
+            self.evaluator = lambda pred, labels: self._evaluator.eval(
+                {"y_pred": pred.argmax(dim=-1, keepdim=True),
+                "y_true": labels.view(-1, 1)}
+            )["acc"]
 
     def _forward(self, batch):
         batch = {k: v.to(self.device) for k, v in batch.items()}

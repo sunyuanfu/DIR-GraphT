@@ -1,5 +1,6 @@
 from utils import init_path
 import numpy as np
+from sklearn.metrics import roc_auc_score
 
 import torch
 
@@ -21,13 +22,26 @@ class Evaluator:
         y_pred = y_pred.detach().cpu().numpy()
         y_true = y_true.detach().cpu().numpy()
         acc_list = []
+        roc_auc_list = []
 
-        for i in range(y_true.shape[1]):
-            is_labeled = y_true[:, i] == y_true[:, i]
-            correct = y_true[is_labeled, i] == y_pred[is_labeled, i]
-            acc_list.append(float(np.sum(correct))/len(correct))
+        if self.name == "chemhiv":
+            for i in range(y_true.shape[1]):
+                is_labeled = y_true[:, i] == y_true[:, i]
+                # Ensure y_true and y_pred for ROC-AUC calculation are valid
+                if len(np.unique(y_true[is_labeled, i])) > 1:  # At least one positive and one negative sample
+                    roc_auc = roc_auc_score(y_true[is_labeled, i], y_pred[is_labeled, i])
+                    roc_auc_list.append(roc_auc)
+                else:
+                    roc_auc_list.append(float('nan'))
+            return {'acc': np.nanmean(roc_auc_list)}
 
-        return {'acc': sum(acc_list)/len(acc_list)}
+        else:
+            for i in range(y_true.shape[1]):
+                is_labeled = y_true[:, i] == y_true[:, i]
+                correct = y_true[is_labeled, i] == y_pred[is_labeled, i]
+                acc_list.append(float(np.sum(correct))/len(correct))
+
+            return {'acc': sum(acc_list)/len(acc_list)}
 
 
 """
