@@ -9,7 +9,7 @@ from scipy.sparse import csr_array
 from LMs.model import SentenceEncoder
 
 
-NAME_TO_SPLIT = {"chemblpre": "chembl_pretraining", "chempcba": "pcba", "chemhiv": "hiv"}
+NAME_TO_SPLIT = {"chembace": "bace", "chembbbp": "bbbp", "chemhiv": "hiv"}
 
 def get_chem_dataset(name):
     cache_dir = os.path.join(os.path.dirname(__file__), "../cache_data/dataset")
@@ -64,10 +64,10 @@ def get_raw_text_hiv(use_text=False, seed=0):
         split[g["split"]].append(i)
 
     train_mask = torch.tensor(
-        [x in split["train"] for x in len(graph)])
+        [x in split["train"] for x in range(len(graphs))])
     val_mask = torch.tensor(
-        [x in split["valid"] for x in len(graph)])
+        [x in split["valid"] for x in range(len(graphs))])
     test_mask = torch.tensor(
-        [x in split["test"] for x in len(graph)])
+        [x in split["test"] for x in range(len(graphs))])
 
     return ChemData(data, label_lst, u_node_texts_lst, train_mask, val_mask, test_mask), None

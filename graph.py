@@ -89,7 +89,7 @@ def generate_all_subgraphs(data, hop=2, max_nodes_per_hop=100, level="node"):
                 'neighbors': data[graph_id].x,
                 'mask': mask
             }
-            max_neighbors = max(max_neighbors, len(neighbors))
+            max_neighbors = max(max_neighbors, len(data[graph_id].x))
 
     all_subgraphs = pad_neighbors(all_subgraphs, max_neighbors)
     return all_subgraphs, max_neighbors
