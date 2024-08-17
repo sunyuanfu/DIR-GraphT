@@ -128,34 +128,37 @@ class GTTrainer():
         logits = self._forward(batch)
         batch['label'] = batch['label'].to(logits.device)
         loss = self.loss_func(logits, batch['label'])
-        train_acc = self.evaluator(logits, batch['label'])
         loss.backward()
         self.optimizer.step()
-        return loss.item(), train_acc
+        return self._get_train_output(logits, batch['label'], loss.item())
 
-    @ torch.no_grad()
+    def _get_train_output(self, logits, labels, loss):
+        if self.dataset_name == "chemhiv":
+            return loss, (logits, labels)
+        else:
+            train_acc = self.evaluator(logits, labels)
+            return loss, train_acc
+
+    @torch.no_grad()
     def _evaluate(self, batch):
         self.model.eval()
         logits = self._forward(batch)
         batch['label'] = batch['label'].to(logits.device)
-        acc = self.evaluator(logits, batch['label'])
-        return acc
+        return self._get_evaluate_output(logits, batch['label'])
+
+    def _get_evaluate_output(self, logits, labels):
+        if self.dataset_name == "chemhiv":
+            return logits, labels
+        else:
+            acc = self.evaluator(logits, labels)
+            return acc
 
     @time_logger
     def train(self):
         for epoch in range(self.epochs):
             t0, es_str = time(), ''
-            train_loss, train_acc = 0, 0
-            for batch in self.train_loader:
-                loss, acc = self._train(batch)
-                train_loss += loss
-                train_acc += acc
-            train_loss /= len(self.train_loader)
-            train_acc /= len(self.train_loader)
-
-            val_acc = 0
-            val_acc = sum(self._evaluate(batch) for batch in self.val_loader)
-            val_acc /= len(self.val_loader)
+            train_loss, train_acc = self._train_epoch()
+            val_acc = self._validate_epoch()
 
             if self.stopper is not None:
                 es_flag, es_str = self.stopper.step(val_acc, self.model, epoch)
@@ -164,25 +167,65 @@ class GTTrainer():
                     break
 
             if epoch % LOG_FREQ == 0:
-                print(
-                    f'Epoch: {epoch}, Time: {time()-t0:.4f}, Loss: {train_loss:.4f}, TrainAcc: {train_acc:.4f}, ValAcc: {val_acc:.4f}, ES: {es_str}')
+                print(f'Epoch: {epoch}, Time: {time()-t0:.4f}, Loss: {train_loss:.4f}, TrainAcc: {train_acc:.4f}, ValAcc: {val_acc:.4f}, ES: {es_str}')
 
         if self.stopper is not None:
             self.model.load_state_dict(torch.load(self.stopper.path))
 
         return self.model
 
+    def _train_epoch(self):
+        all_logits, all_labels = [], []
+        train_loss, train_acc = 0, 0
+        for batch in self.train_loader:
+            loss, output = self._train(batch)
+            train_loss += loss
+            if self.dataset_name == "chemhiv":
+                logits, labels = output
+                all_logits.append(logits)
+                all_labels.append(labels)
+            else:
+                train_acc += output
+
+        train_loss /= len(self.train_loader)
+        if self.dataset_name == "chemhiv":
+            train_acc = self.evaluator(torch.cat(all_logits, dim=0), torch.cat(all_labels, dim=0))
+        else:
+            train_acc /= len(self.train_loader)
+        return train_loss, train_acc
+
+    @torch.no_grad()
+    def _validate_epoch(self):
+        if self.dataset_name == "chemhiv":
+            all_logits, all_labels = [], []
+            for batch in self.val_loader:
+                logits, labels = self._evaluate(batch)
+                all_logits.append(logits)
+                all_labels.append(labels)
+            return self.evaluator(torch.cat(all_logits, dim=0), torch.cat(all_labels, dim=0))
+        else:
+            val_acc = sum(self._evaluate(batch) for batch in self.val_loader)
+            return val_acc / len(self.val_loader)
+
     @torch.no_grad()
     def eval_and_save(self):
         torch.save(self.model.state_dict(), self.ckpt)
-        val_acc, test_acc = 0, 0
-
-        test_acc = sum(self._evaluate(batch) for batch in self.test_loader)
-        val_acc = sum(self._evaluate(batch) for batch in self.val_loader)
-
-        val_acc /= len(self.val_loader)
-        test_acc /= len(self.test_loader)
-
+        val_acc = self._validate_epoch()
+        test_acc = self._test_epoch()
         print(f'GraphT+{self.dataset_name}+{self.gt_n_layers} ValAcc: {val_acc:.4f}, TestAcc: {test_acc:.4f}\n')
-        res = {'val_acc': val_acc, 'test_acc': test_acc}
-        return res
+        return {'val_acc': val_acc, 'test_acc': test_acc}
+
+    def _test_epoch(self):
+        if self.dataset_name == "chemhiv":
+            all_logits, all_labels = [], []
+            for batch in self.test_loader:
+                logits, labels = self._evaluate(batch)
+                all_logits.append(logits)
+                all_labels.append(labels)
+            return self.evaluator(torch.cat(all_logits, dim=0), torch.cat(all_labels, dim=0))
+        else:
+            test_acc = sum(self._evaluate(batch) for batch in self.test_loader)
+            return test_acc / len(self.test_loader)
+
+
+
