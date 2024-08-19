@@ -9,22 +9,20 @@ import torch
 from scipy.sparse import csr_array
 from ogb.graphproppred import PygGraphPropPredDataset
 
-class PPAData:
-    def __init__(self, datalist, labels, train_mask, val_mask, test_mask):
+class PCBAData:
+    def __init__(self, dataset, datalist, labels, train_mask, val_mask, test_mask):
         self.datalist = datalist
         self.labels = labels
         self.train_mask = train_mask
         self.val_mask = val_mask
         self.test_mask = test_mask
-        self.features = torch.eye(300, dtype=torch.long)
+        self.features = dataset.x
 
-def get_raw_text_ppa(use_text=False, seed=0):
-    dataset = PygGraphPropPredDataset(name="ogbg-ppa")
+def get_raw_text_ogbpcba(use_text=False, seed=0):
+    dataset = PygGraphPropPredDataset(name="ogbg-molpcba")
     data = []
-    labels = dataset.y.squeeze()
-    labels = labels.numpy()
+    labels = dataset.y.numpy()
     for i, subgraph in enumerate(dataset):
-        subgraph.x = torch.arange(subgraph.num_nodes, dtype=torch.long)
         subgraph.adj = csr_array((torch.ones(len(subgraph.edge_index[0])), (subgraph.edge_index[0], subgraph.edge_index[1]),),
                 shape=(subgraph.num_nodes, subgraph.num_nodes), )
         data.append(subgraph)
@@ -36,6 +34,4 @@ def get_raw_text_ppa(use_text=False, seed=0):
     val_mask[idx_splits['valid']] = True
     test_mask[idx_splits['test']] = True
 
-    return PPAData(data, labels, train_mask, val_mask, test_mask), None
-    
-
+    return PCBAData(dataset, data, labels, train_mask, val_mask, test_mask), None

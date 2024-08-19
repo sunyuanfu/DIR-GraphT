@@ -70,13 +70,14 @@ class Dataset(torch.utils.data.Dataset):
 
 # Creat torch dataset for GraphT
 class TDataset(TorchDataset):
-    def __init__(self, all_subgraphs, shortest_distances, features, labels, node_mask):
+    def __init__(self, all_subgraphs, shortest_distances, features, labels, node_mask, name="others"):
         self.all_subgraphs = all_subgraphs
         self.shortest_distances = shortest_distances
         self.features = features
         self.labels = labels
         self.node_mask = node_mask
         self.node_ids = torch.nonzero(node_mask).flatten()
+        self.name = name
 
     def __len__(self):
         return len(self.node_ids)
@@ -91,11 +92,17 @@ class TDataset(TorchDataset):
         feature_dim = self.features.shape[1]
         neighbor_features = []
         
-        for neighbor_id in neighbors:
-            if neighbor_id == -1:
-                neighbor_features.append(torch.rand(feature_dim))
-            else:
-                neighbor_features.append(self.features[neighbor_id])
+        if self.name == "ogbg-pcba":
+            neighbor_features.extend(subgraph["subgraph_features"].numpy())
+            for neighbor_id in neighbors:
+                if neighbor_id == -1:
+                    neighbor_features.append(torch.rand(feature_dim))
+        else:
+            for neighbor_id in neighbors:
+                if neighbor_id == -1:
+                    neighbor_features.append(torch.rand(feature_dim))
+                else:
+                    neighbor_features.append(self.features[neighbor_id])
 
         neighbor_features = [feature.to(self.features.device) for feature in neighbor_features]
         neighbor_features = torch.stack(neighbor_features)
@@ -113,7 +120,7 @@ class TDataset(TorchDataset):
         return sample
 
 
-def create_datasets(data, all_subgraphs, shortest_distances, features, labels):
+def create_datasets(data, all_subgraphs, shortest_distances, features, labels, name):
     train_mask = data.train_mask
     test_mask = data.test_mask
     val_mask = data.val_mask
@@ -123,7 +130,8 @@ def create_datasets(data, all_subgraphs, shortest_distances, features, labels):
         shortest_distances=shortest_distances,
         features=features,
         labels=labels,
-        node_mask=train_mask
+        node_mask=train_mask,
+        name=name
     )
     
     test_dataset = TDataset(
@@ -131,7 +139,8 @@ def create_datasets(data, all_subgraphs, shortest_distances, features, labels):
         shortest_distances=shortest_distances,
         features=features,
         labels=labels,
-        node_mask=test_mask
+        node_mask=test_mask,
+        name=name
     )
     
     val_dataset = TDataset(
@@ -139,7 +148,8 @@ def create_datasets(data, all_subgraphs, shortest_distances, features, labels):
         shortest_distances=shortest_distances,
         features=features,
         labels=labels,
-        node_mask=val_mask
+        node_mask=val_mask,
+        name=name
     )
     
     return train_dataset, test_dataset, val_dataset

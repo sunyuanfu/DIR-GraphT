@@ -1,7 +1,7 @@
 import os
 import pickle
 
-from gen_raw_graph import *
+from .gen_raw_graph import *
 
 from datasets import load_dataset
 import torch_geometric as pyg
@@ -9,7 +9,7 @@ from scipy.sparse import csr_array
 from LMs.model import SentenceEncoder
 
 
-NAME_TO_SPLIT = {"chembace": "bace", "chembbbp": "bbbp", "chemhiv": "hiv"}
+NAME_TO_SPLIT = {"chembace": "bace", "chembbbp": "bbbp", "chemhiv": "hiv", "chempcba": "pcba"}
 
 def get_chem_dataset(name):
     cache_dir = os.path.join(os.path.dirname(__file__), "../cache_data/dataset")
@@ -27,8 +27,8 @@ class ChemData:
         self.encoder = SentenceEncoder("ST")
         self.features = self.encoder.encode(self.u_node_texts_lst)
 
-def get_raw_text_hiv(use_text=False, seed=0):
-    data = get_chem_dataset("chemhiv")
+def get_raw_text_hiv(use_text=False, seed=0, name="chemhiv"):
+    data = get_chem_dataset(name)
     mol = data["graph"]
     split = data["split"]
     labels = data["label"]

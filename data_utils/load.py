@@ -41,7 +41,13 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
         num_classes = 40
     elif dataset == 'chemhiv':
         from .load_chem import get_raw_text_hiv as get_raw_text
-        num_classes = 2
+        num_classes = 1
+    elif dataset == 'chempcba':
+        from .load_chem import get_raw_text_hiv as get_raw_text
+        num_classes = 128
+    elif dataset == 'ogbg-pcba':
+        from .load_ogbpcba import get_raw_text_ogbpcba as get_raw_text
+        num_classes = 128
     elif dataset == 'ogbg-ppa':
         from .load_ogbppa import get_raw_text_ppa as get_raw_text
         num_classes = 37
@@ -50,7 +56,10 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
 
     # for training GNN
     if not use_text:
-        data, _ = get_raw_text(use_text=False, seed=seed)
+        if dataset == "chempcba":
+            data, _ = get_raw_text(use_text=False, seed=seed, name="chempcba")
+        else:
+            data, _ = get_raw_text(use_text=False, seed=seed)
         if use_dgl:
             data = CustomDGLDataset(dataset, data)
         return data, num_classes

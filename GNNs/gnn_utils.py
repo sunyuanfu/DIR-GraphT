@@ -1,6 +1,6 @@
 from utils import init_path
 import numpy as np
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, average_precision_score
 
 import torch
 
@@ -23,6 +23,7 @@ class Evaluator:
         y_true = y_true.detach().cpu().numpy()
         acc_list = []
         roc_auc_list = []
+        ap_list = []
 
         if self.name == "chemhiv":
             for i in range(y_true.shape[1]):
@@ -33,8 +34,20 @@ class Evaluator:
                     roc_auc_list.append(roc_auc)
                 else:
                     roc_auc_list.append(float('nan'))
-            return {'acc': np.nanmean(roc_auc_list)}
+            return {'rocauc': np.nanmean(roc_auc_list)}
+        elif self.name == "chempcba":
+            for i in range(y_true.shape[1]):
+            #AUC is only defined when there is at least one positive data.
+                if np.sum(y_true[:,i] == 1) > 0 and np.sum(y_true[:,i] == 0) > 0:
+                    # ignore nan values
+                    is_labeled = y_true[:,i] == y_true[:,i]
+                    ap = average_precision_score(y_true[is_labeled,i], y_pred[is_labeled,i])
+                    ap_list.append(ap)
 
+            if len(ap_list) == 0:
+                raise RuntimeError('No positively labeled data available. Cannot compute Average Precision.')
+
+            return {'ap': sum(ap_list)/len(ap_list)}
         else:
             for i in range(y_true.shape[1]):
                 is_labeled = y_true[:, i] == y_true[:, i]
