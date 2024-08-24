@@ -39,6 +39,7 @@ class ScaledDotProductAttentionGraph(nn.Module):
         attn_score = torch.matmul(Q, K.transpose(2, 3)) / math.sqrt(dim_qk)  # tensor(bsize, nheads, |E|, |E|)
         attn_score = attn_score + bias
         attn_score = attn_score.masked_fill(~mask, -1e9)  # tensor(bsize, nheads, |E|, |E|)
+        attn_score[:, :, 1:, 0] = -1e9
         attn_score = F.softmax(attn_score, dim=-1)  # tensor(bsize, nheads, |E|, |E|)
         output = torch.matmul(attn_score, V)  # tensor(bsize, nheads, |E|, d_v)
         return attn_score, output  # attn_score: tensor(bsize, nheads, |E|, |E|), output: tensor(bsize, nheads, |E|, d_v)
