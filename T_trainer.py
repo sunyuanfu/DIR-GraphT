@@ -165,6 +165,7 @@ class GTTrainer():
             labels = batch['label'].float()
             loss = self.loss_func(logits.squeeze(), labels)
         else:
+            labels = batch['label']
             loss = self.loss_func(logits, labels)
         loss.backward()
         self.optimizer.step()
