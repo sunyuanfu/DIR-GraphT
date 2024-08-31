@@ -70,7 +70,7 @@ class Dataset(torch.utils.data.Dataset):
 
 # Creat torch dataset for GraphT
 class TDataset(TorchDataset):
-    def __init__(self, all_subgraphs, shortest_distances, features, labels, node_mask, name="others"):
+    def __init__(self, all_subgraphs, shortest_distances, features, labels, node_mask, name):
         self.all_subgraphs = all_subgraphs
         self.shortest_distances = shortest_distances
         self.features = features
@@ -120,7 +120,7 @@ class TDataset(TorchDataset):
         return sample
 
 
-def create_datasets(data, all_subgraphs, shortest_distances, features, labels, name):
+def create_datasets(data, all_subgraphs, shortest_distances, features, labels, name="others"):
     train_mask = data.train_mask
     test_mask = data.test_mask
     val_mask = data.val_mask

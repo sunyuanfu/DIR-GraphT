@@ -161,8 +161,8 @@ class GTTrainer():
         self.optimizer.zero_grad()
         logits = self._forward(batch)
         batch['label'] = batch['label'].to(logits.device)
-        labels = batch['label'].float()
         if self.dataset_name == "chemhiv":
+            labels = batch['label'].float()
             loss = self.loss_func(logits.squeeze(), labels)
         else:
             loss = self.loss_func(logits, labels)
