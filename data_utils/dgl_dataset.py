@@ -70,7 +70,7 @@ class Dataset(torch.utils.data.Dataset):
 
 # Creat torch dataset for GraphT
 class TDataset(TorchDataset):
-    def __init__(self, all_subgraphs, shortest_distances, features, labels, node_mask, name):
+    def __init__(self, all_subgraphs, shortest_distances, features, labels, node_mask, name="others"):
         self.all_subgraphs = all_subgraphs
         self.shortest_distances = shortest_distances
         self.features = features
@@ -92,8 +92,12 @@ class TDataset(TorchDataset):
         feature_dim = self.features.shape[1]
         neighbor_features = []
         
-        if self.name == "ogbg-pcba":
-            neighbor_features.extend(subgraph["subgraph_features"].numpy())
+        #print(self.name)
+        if self.name == "ogbg-pcba" or self.name == "ogbg-hiv":
+            #print("flagpass")
+            #print(subgraph["subgraph_features"])
+            for x in subgraph["subgraph_features"]:
+                neighbor_features.append(x)
             for neighbor_id in neighbors:
                 if neighbor_id == -1:
                     neighbor_features.append(torch.rand(feature_dim))

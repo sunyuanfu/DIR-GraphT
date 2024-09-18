@@ -58,6 +58,7 @@ def pad_neighbors(all_subgraphs, max_length):
         if len(neighbors) < max_length:
             padding = torch.full((max_length - len(neighbors),), -1, dtype=torch.long)
             mask_padding = torch.zeros((max_length - len(neighbors),), dtype=torch.float32)
+            #print(neighbors)
             neighbors = torch.cat([neighbors, padding])
             mask = torch.cat([mask, mask_padding])
         all_subgraphs[node_id]['neighbors'] = neighbors
@@ -80,6 +81,17 @@ def generate_all_subgraphs(data, hop=2, max_nodes_per_hop=100, level="node"):
                 'mask': mask
             }
             max_neighbors = max(max_neighbors, len(neighbors))
+    elif level == "ogbg-pcba" or level == "ogbg-hiv":
+        num_graphs = len(data)
+        for graph_id in tqdm(range(num_graphs), desc="Generating Subgraphs"):
+            mask = torch.ones(data[graph_id].x.shape[0], dtype=torch.float32)  
+            all_subgraphs[graph_id] = {
+                'edge_index': data[graph_id].edge_index,
+                'neighbors': mask,
+                'mask': mask,
+                'subgraph_features': data[graph_id].x
+            }
+            max_neighbors = max(max_neighbors, len(mask))
     else:
         num_graphs = len(data)
         for graph_id in tqdm(range(num_graphs), desc="Generating Subgraphs"):

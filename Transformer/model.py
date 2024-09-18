@@ -11,6 +11,7 @@ class GraphTransformer(nn.Module):
         super().__init__()
         self.tst_token = nn.Parameter(torch.zeros(1, 1, dim_in))
         self.level = level
+        self.scheme = "uniform" #choices: uniform, average, degree
         self.encoder = Encoder(n_layers=n_layers, dim_in=dim_in, dim_out=dim_out, dim_hidden=dim_hidden, dim_qk=dim_qk, dim_v=dim_v, 
                          dim_ff=dim_ff, n_heads=n_heads, drop_input=drop_input, dropout=dropout, drop_mu=drop_mu, last_layer_n_heads=last_layer_n_heads,
                          level=self.level)
@@ -69,10 +70,41 @@ class GraphTransformer(nn.Module):
 
         num_nodes = D_mat.size(1)
         input_D = torch.full((b, num_nodes + 1, num_nodes + 1), float('inf')).to(MASK.device)
-        update_value = torch.where(D_mat[:, 0, 0:] == 9999, 9999, D_mat[:, 0, 0:] + 1)
-        input_D[:, 0, 1:] = update_value
-        update_value = torch.where(D_mat[:, 0, 0:] == 9999, 9999, D_mat[:, 0, 0:] + 1)
-        input_D[:, 1:, 0] = update_value
+        if self.level == "node":
+            update_value = torch.where(D_mat[:, 0, 0:] == 9999, 9999, D_mat[:, 0, 0:] + 1)
+            input_D[:, 0, 1:] = update_value
+            update_value = torch.where(D_mat[:, 0, 0:] == 9999, 9999, D_mat[:, 0, 0:] + 1)
+            input_D[:, 1:, 0] = update_value
+        else:
+            if self.scheme == "uniform":
+                input_D[:, 0, 1:] = 1 
+                input_D[:, 1:, 0] = 1
+            elif self.scheme == "average":
+                # Compute average distance for each node (ignoring `9999` values)
+                avg_distances = torch.where(D_mat == 9999, 0, D_mat).sum(dim=2) / (D_mat != 9999).sum(dim=2)
+
+                # Normalize average distances to the range [0, 4]
+                min_dist, _ = avg_distances.min(dim=1, keepdim=True)
+                max_dist, _ = avg_distances.max(dim=1, keepdim=True)
+                normalized_avg_distances = 4 * (avg_distances - min_dist) / (max_dist - min_dist + 1e-9)
+
+                # Discretize the distances to integers between 0 and 4
+                discretized_avg_distances = torch.round(torch.round(normalized_avg_distances).clamp(0, 4)).long()
+                input_D[:, 0, 1:] = discretized_avg_distances
+                input_D[:, 1:, 0] = discretized_avg_distances
+            else:
+                # Compute the degree (or the number of connections) for each node, excluding `9999`
+                node_degrees = (D_mat != 9999).sum(dim=2)
+
+                # Normalize node degrees to the range [0, 4]
+                min_degree, _ = node_degrees.min(dim=1, keepdim=True)
+                max_degree, _ = node_degrees.max(dim=1, keepdim=True)
+                normalized_degrees = 4 * (node_degrees - min_degree) / (max_degree - min_degree + 1e-9)
+
+                # Discretize the normalized degrees to integers between 0 and 4
+                discretized_degrees = torch.round(torch.round(normalized_degrees).clamp(0, 4)).long()
+                input_D[:, 0, 1:] = discretized_degrees
+                input_D[:, 1:, 0] = discretized_degrees
         input_D[:, 1:, 1:] = D_mat
         input_D[:, :1, :1] = 0
         true_column = torch.ones((b, 1), dtype=torch.bool).to(MASK.device)
