@@ -9,7 +9,7 @@ from data_utils.load import load_data, load_gpt_preds
 from utils import time_logger
 
 from Transformer.model import GraphTransformer
-from data_utils.dgl_dataset import create_datasets
+from data_utils.dgl_dataset import create_datasets, create_datasets_tu
 from graph import generate_all_subgraphs, compute_shortest_distances
 from torch.utils.data import DataLoader
 
@@ -37,8 +37,8 @@ class GTTrainer():
         self.lr = cfg.gt.train.lr
         self.weight_decay = cfg.gt.train.weight_decay
 
-
-        print("Loading pretrained LM features for GraphTransformer ...")
+        if cfg.lm.train.use_gpt:
+            print("Loading pretrained LM features for GraphTransformer ...")
         # LM_emb_path = f"prt_lm/{self.dataset_name}/{self.lm_model_name}-seed{self.seed}.emb"
         # print(f"LM_emb_path: {LM_emb_path}")
         # features = torch.from_numpy(np.array(
@@ -63,6 +63,27 @@ class GTTrainer():
                 self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data.datalist, level="ogbg-hiv")
             else:
                 self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data.datalist, level="graph")
+        # elif self.dataset_name == "ENZYMES" or self.dataset_name == "PROTEINS":
+        #     # grapgh-level classification   
+        #     self.num_graphs = len(self.data)
+        #     print("num_graphs: ", self.num_graphs)
+        #     labels = torch.tensor(self.data.y, dtype=torch.long)
+        #     print("labels: ", labels.shape)
+        #     self.features = self.data.x
+        #     print("features: ", self.features.shape)
+        #     self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(self.data, level="graph_classification")
+
+        elif self.dataset_name.startswith('PYG_TU_'):
+            # Handle TUDataset datasets
+            self.num_graphs = len(self.data)
+            print("num_graphs: ", self.num_graphs)
+            labels = torch.tensor(self.data.data.y, dtype=torch.long)
+            print("labels: ", labels.shape)
+            self.features_by_graph = [self.data[i].x for i in range(self.num_graphs)]
+            print("Number of graphs: ", len(self.features_by_graph))
+            self.all_subgraphs, self.max_neighbors = generate_all_subgraphs(
+                self.data, level="graph_classification")
+
         else:
             self.num_nodes = data.y.shape[0]
             data.y = data.y.squeeze()
@@ -89,6 +110,54 @@ class GTTrainer():
                 labels=labels,
                 name="ogbg-hiv"
             )
+        # elif self.dataset_name == "ENZYMES" or self.dataset_name == "PROTEINS":
+        #     print("dataset_name: ", self.dataset_name)
+        #     print(data)
+        #     print("Number of classes: ", num_classes)
+        #     print("len(self.all_subgraphs)", len(self.all_subgraphs))
+        #     print("len(self.shortest_distances)", len(self.shortest_distances))
+        #     print("shape of self.features", self.features.shape)
+        #     print("shape of labels", labels.shape)
+        #     # print("name: ", self.dataset_name)
+        #     self.features_by_graph = [self.data[i].x for i in range(self.num_graphs)]
+        #     print("Number of graphs: ", len(self.features))
+        #     self.train_dataset, self.val_dataset, self.test_dataset = create_datasets_tu(
+        #         data=self.data,
+        #         all_subgraphs=self.all_subgraphs,
+        #         shortest_distances=self.shortest_distances,
+        #         features=self.features_by_graph,
+        #         labels=labels,
+        #         seed=self.seed
+        #     )
+
+        elif self.dataset_name.startswith('PYG_TU_'):
+            print("dataset_name: ", self.dataset_name)
+            print(data)
+            print("Number of classes: ", num_classes)
+            print("len(self.all_subgraphs)", len(self.all_subgraphs))
+            print("len(self.shortest_distances)", len(self.shortest_distances))
+            print("Length of self.features_by_graph", len(self.features_by_graph))
+            print("shape of self.features_by_graph[0]", self.features_by_graph[0].shape)
+            print("shape of self.features_by_graph[1]", self.features_by_graph[1].shape)
+            print("shape of labels", labels.shape)
+            # print("name: ", self.dataset_name)
+            # self.features_by_graph = [self.data[i].x for i in range(self.num_graphs)]
+            # print("Number of graphs: ", len(self.features))
+            self.train_dataset, self.val_dataset, self.test_dataset = create_datasets_tu(
+                data=self.data,
+                all_subgraphs=self.all_subgraphs,
+                shortest_distances=self.shortest_distances,
+                features=self.features_by_graph,
+                labels=labels,
+                seed=self.seed
+            )
+
+            # for i, graph in enumerate(self.data):
+            #     if graph.x is None:
+            #         print(f"Graph {i} has no node features.")
+            #     else:
+            #         print(f"Graph {i}, Node Features Shape: {graph.x.shape}")
+
         else:
             self.train_dataset, self.test_dataset, self.val_dataset = create_datasets(
                 data=self.data,
@@ -98,9 +167,9 @@ class GTTrainer():
                 labels=labels
             )
 
-        print("train mask: ", self.data.train_mask)
-        print("valid mask: ", self.data.val_mask)
-        print("test mask: ", self.data.test_mask)
+        # print("train mask: ", self.data.train_mask)
+        # print("valid mask: ", self.data.val_mask)
+        # print("test mask: ", self.data.test_mask)
         
         print("----------------------------")
         print("----------------------------")
@@ -114,11 +183,22 @@ class GTTrainer():
         self.train_loader = DataLoader(self.train_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True, drop_last=True)
         self.test_loader = DataLoader(self.test_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True)
         self.val_loader = DataLoader(self.val_dataset, batch_size=cfg.gt.train.batch_size, shuffle=False, pin_memory=True)
+        for batch in self.train_loader:
+            print("Batch features shape:", batch['features'].shape)
+            print("Batch distance_matrix shape:", batch['distance_matrix'].shape)
+            print("Batch mask shape:", batch['mask'].shape)
+            print("Batch labels shape:", batch['label'].shape)
+            break
 
         # self.data = self.data.to(self.device)
         # self.features = self.features.to(self.device)
-        if self.dataset_name == "chemhiv" or self.dataset_name == "ogbg-hiv" or self.dataset_name == "chempcba" or self.dataset_name == "ogbg-pcba" or self.dataset_name == "ogbg-ppa":
-            self.model = GraphTransformer(n_layers=self.gt_n_layers, dim_in=self.features.size(1), dim_out=self.num_classes, dim_hidden=self.gt_dim_hidden, 
+        if hasattr(self, 'features_by_graph') and self.features_by_graph is not None:
+            feature_dim = self.features_by_graph[0].size(1)
+        else:
+            feature_dim = self.features.size(1)
+
+        if self.dataset_name == "chemhiv" or self.dataset_name == "ogbg-hiv" or self.dataset_name == "chempcba" or self.dataset_name == "ogbg-pcba" or self.dataset_name == "ogbg-ppa" or self.dataset_name.startswith('PYG_TU_'): #or self.dataset_name == "ENZYMES" or self.dataset_name == "PROTEINS" 
+            self.model = GraphTransformer(n_layers=self.gt_n_layers, dim_in=feature_dim, dim_out=self.num_classes, dim_hidden=self.gt_dim_hidden, 
                                         dim_qk=self.gt_dim_qk, dim_v=self.gt_dim_v, dim_ff=self.gt_dim_ff, n_heads=self.gt_n_heads, drop_input=self.gt_drop_input, 
                                         dropout=self.gt_dropout, drop_mu=self.gt_dropmu, last_layer_n_heads=self.gt_lln_heads,
                                         level="graph")
@@ -189,10 +269,30 @@ class GTTrainer():
         if self.dataset_name == "chemhiv" or self.dataset_name == "ogbg-hiv" or self.dataset_name == "chempcba" or self.dataset_name == "ogbg-pcba":
             return loss, (logits, labels)
         else:
+            print("shape of train logits: ", logits.shape)
+            print("shape of train labels: ", labels.shape)
+            print("train loss: ", loss)
             train_acc = self.evaluator(logits, labels)
-            print("ppa train logits: ", logits)
-            print("ppa train predictions: ", logits.argmax(dim=-1, keepdim=True))
-            print("ppa train labels: ", labels)
+            # print("ppa train logits: ", logits)
+            # print("ppa train predictions: ", logits.argmax(dim=-1, keepdim=True))
+            # print("ppa train labels: ", labels)
+            # print("train logits: ", logits)
+            # print("train predictions: ", logits.argmax(dim=-1, keepdim=True))
+            # print("train labels: ", labels)
+
+            # Print sample predictions and labels
+            sample_logits = logits[:5]
+            sample_predictions = logits.argmax(dim=-1)[:5]
+            sample_labels = labels[:5]
+            print("Shape of sample_predictions:", sample_predictions.shape)
+            print("Shape of sample_labels:", sample_labels.shape)
+            
+            print("Sample train logits:")
+            print(sample_logits)
+            print("Sample train predictions and labels:")
+            for pred, label in zip(sample_predictions.cpu().numpy(), sample_labels.cpu().numpy()):
+                print(f"Prediction: {pred}, Label: {label}")
+            
             return loss, train_acc
 
     @torch.no_grad()
@@ -206,9 +306,22 @@ class GTTrainer():
         if self.dataset_name == "chemhiv" or self.dataset_name == "ogbg-hiv" or self.dataset_name == "chempcba" or self.dataset_name == "ogbg-pcba":
             return logits, labels
         else:
-            print("ppa eval logits: ", logits)
-            print("ppa eval predictions: ", logits.argmax(dim=-1, keepdim=True))
-            print("ppa eval labels: ", labels)
+            # print("ppa eval logits: ", logits)
+            # print("ppa eval predictions: ", logits.argmax(dim=-1, keepdim=True))
+            # print("ppa eval labels: ", labels)
+            # print("eval logits: ", logits)
+            # print("eval predictions: ", logits.argmax(dim=-1, keepdim=True))
+            # print("eval labels: ", labels)
+
+            # Print sample predictions and labels
+            sample_logits = logits[:5]
+            sample_predictions = logits.argmax(dim=-1)[:5]
+            sample_labels = labels[:5]
+            print("Sample eval logits:")
+            print(sample_logits)
+            print("Sample eval predictions and labels:")
+            for pred, label in zip(sample_predictions.cpu().numpy(), sample_labels.cpu().numpy()):
+                print(f"Prediction: {pred}, Label: {label}")
             acc = self.evaluator(logits, labels)
             return acc
 

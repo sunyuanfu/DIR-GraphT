@@ -51,6 +51,19 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
     elif dataset == 'ogbg-ppa':
         from .load_ogbppa import get_raw_text_ppa as get_raw_text
         num_classes = 37
+    # elif dataset == 'ENZYMES':
+    #     from .load_tu_dataset import get_tu_dataset
+    #     data, num_classes = get_tu_dataset(name='ENZYMES')
+    #     return data, num_classes
+    # elif dataset == 'PROTEINS':
+    #     from .load_tu_dataset import get_tu_dataset
+    #     data, num_classes = get_tu_dataset(name='PROTEINS')
+    #     return data, num_classes
+    elif dataset.startswith('PYG_TU_'):
+        from .load_tu_dataset import get_tu_dataset
+        dataset_name = dataset[len('PYG_TU_'):]  # get the dataset name
+        data, num_classes = get_tu_dataset(name=dataset_name)
+        return data, num_classes
     else:
         exit(f'Error: Dataset {dataset} not supported')
 

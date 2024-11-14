@@ -81,7 +81,7 @@ def generate_all_subgraphs(data, hop=2, max_nodes_per_hop=100, level="node"):
                 'mask': mask
             }
             max_neighbors = max(max_neighbors, len(neighbors))
-    elif level == "ogbg-pcba" or level == "ogbg-hiv":
+    elif level == "ogbg-pcba" or level == "ogbg-hiv" or level == "graph_classification":
         num_graphs = len(data)
         for graph_id in tqdm(range(num_graphs), desc="Generating Subgraphs"):
             mask = torch.ones(data[graph_id].x.shape[0], dtype=torch.float32)  
@@ -91,6 +91,11 @@ def generate_all_subgraphs(data, hop=2, max_nodes_per_hop=100, level="node"):
                 'mask': mask,
                 'subgraph_features': data[graph_id].x
             }
+            if graph_id < 1:
+                print('data[graph_id].edge_index.shape', data[graph_id].edge_index.shape)
+                print('data[graph_id].x.shape', data[graph_id].x.shape)
+                print('mask.shape', mask.shape)
+
             max_neighbors = max(max_neighbors, len(mask))
     else:
         num_graphs = len(data)

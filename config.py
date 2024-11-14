@@ -9,13 +9,13 @@ def set_cfg(cfg):
     # Basic options
     # ------------------------------------------------------------------------ #
     # Dataset name
-    cfg.dataset = 'arxiv-2023'
+    cfg.dataset = "PYG_TU_ENZYMES"#'arxiv-2023'
     # Cuda device number, used for machine with multiple gpus
     cfg.device = 'cuda:0'
     # Whether fix the running seed to remove randomness
     cfg.seed = None
     # Number of runs with random init
-    cfg.runs = 4
+    cfg.runs = 2#4
     cfg.gnn = CN()
     cfg.lm = CN()
     cfg.gt = CN()
@@ -92,23 +92,23 @@ def set_cfg(cfg):
     # ------------------------------------------------------------------------ #
     cfg.gt.train = CN()
 
-    cfg.gt.train.batch_size = 100
+    cfg.gt.train.batch_size = 32#100 #100 will be too large for the GPU
 
-    cfg.gt.train.epochs = 100
+    cfg.gt.train.epochs = 1#100
 
-    cfg.gt.train.n_layers = 9
+    cfg.gt.train.n_layers = 6#9
 
-    cfg.gt.train.dim_hidden = 256
+    cfg.gt.train.dim_hidden = 16#256
 
-    cfg.gt.train.dim_qk = 256
+    cfg.gt.train.dim_qk = 64#256
 
-    cfg.gt.train.dim_v = 256
+    cfg.gt.train.dim_v = 64#256
 
-    cfg.gt.train.dim_ff = 256
+    cfg.gt.train.dim_ff = 64#256
 
-    cfg.gt.train.n_heads = 16
+    cfg.gt.train.n_heads = 8#16
 
-    cfg.gt.train.last_layer_n_heads = 16
+    cfg.gt.train.last_layer_n_heads = 8#16
 
     cfg.gt.train.input_dropout_rate = 0.2
 
@@ -133,6 +133,7 @@ def update_cfg(cfg, args_str=None):
     # opts arg needs to match set_cfg
     parser.add_argument("opts", default=[], nargs=argparse.REMAINDER,
                         help="Modify config options using the command-line")
+    parser.add_argument('--dataset', type=str, default='PYG_TU_MUTAG', help='Dataset name')
 
     if isinstance(args_str, str):
         # parse from a string
@@ -142,6 +143,7 @@ def update_cfg(cfg, args_str=None):
         args = parser.parse_args()
     # Clone the original cfg
     cfg = cfg.clone()
+    cfg.dataset = args.dataset
 
     # Update from config file
     if os.path.isfile(args.config):

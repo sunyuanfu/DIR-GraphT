@@ -157,3 +157,101 @@ def create_datasets(data, all_subgraphs, shortest_distances, features, labels, n
     )
     
     return train_dataset, test_dataset, val_dataset
+
+
+# data_utils/dgl_dataset.py
+
+
+# data_utils/dgl_dataset.py
+
+class TUDatasetCustom(torch.utils.data.Dataset):
+    def __init__(self, all_subgraphs, shortest_distances, features, labels, data_indices):
+        self.all_subgraphs = all_subgraphs
+        self.shortest_distances = shortest_distances
+        self.features = features  # List of tensors (node features for each graph)
+        self.labels = labels      # Tensor of shape [num_graphs]
+        self.data_indices = data_indices  # Indices of graphs in this dataset
+
+    def __len__(self):
+        return len(self.data_indices)
+
+    def __getitem__(self, idx):
+        graph_id = self.data_indices[idx].item()
+        subgraph = self.all_subgraphs[graph_id]
+        mask = subgraph['mask'].bool()  # Shape: [max_nodes]
+
+        distance_matrix = self.shortest_distances[graph_id]  # Shape: [max_nodes, max_nodes]
+        distance_matrix = torch.tensor(distance_matrix, dtype=torch.float32)
+
+        # Get node features for this graph and pad if necessary
+        neighbor_features = self.features[graph_id]  # Shape: [num_nodes_in_graph, feature_dim]
+        num_nodes = neighbor_features.shape[0]
+        max_nodes = mask.size(0)
+        if num_nodes < max_nodes:
+            padding_size = (max_nodes - num_nodes, neighbor_features.shape[1])
+            neighbor_features = torch.cat([
+                neighbor_features,
+                torch.zeros(padding_size, dtype=torch.float32)
+            ], dim=0)
+        neighbor_features = neighbor_features.to(torch.float32)
+
+        graph_label = self.labels[graph_id]
+
+        sample = {
+            'node_id': graph_id,
+            'distance_matrix': distance_matrix,
+            'features': neighbor_features,
+            'mask': mask,
+            'label': graph_label,
+        }
+
+        return sample
+
+
+
+
+def create_datasets_tu(data, all_subgraphs, shortest_distances, features, labels, seed=0):
+    # Number of graphs
+    num_samples = len(data)
+
+    # Set random seed for reproducibility
+    torch.manual_seed(seed)
+
+    # Generate shuffled indices
+    indices = torch.randperm(num_samples)
+
+    # Split indices for train, validation, and test sets
+    train_size = int(0.8 * num_samples)
+    val_size = int(0.1 * num_samples)
+    test_size = num_samples - train_size - val_size
+
+    train_indices = indices[:train_size]
+    val_indices = indices[train_size:train_size + val_size]
+    test_indices = indices[train_size + val_size:]
+
+    # Create datasets
+    train_dataset = TUDatasetCustom(
+        all_subgraphs=all_subgraphs,
+        shortest_distances=shortest_distances,
+        features=features,
+        labels=labels,
+        data_indices=train_indices,
+    )
+
+    val_dataset = TUDatasetCustom(
+        all_subgraphs=all_subgraphs,
+        shortest_distances=shortest_distances,
+        features=features,
+        labels=labels,
+        data_indices=val_indices,
+    )
+
+    test_dataset = TUDatasetCustom(
+        all_subgraphs=all_subgraphs,
+        shortest_distances=shortest_distances,
+        features=features,
+        labels=labels,
+        data_indices=test_indices,
+    )
+
+    return train_dataset, val_dataset, test_dataset
