@@ -8,6 +8,8 @@ import torch_geometric as pyg
 import torch
 from scipy.sparse import csr_array
 from ogb.graphproppred import PygGraphPropPredDataset
+import networkx as nx
+from sklearn.metrics.pairwise import euclidean_distances
 
 class HIVData:
     def __init__(self, dataset, datalist, labels, train_mask, val_mask, test_mask):
