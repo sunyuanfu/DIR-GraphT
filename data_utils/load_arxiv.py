@@ -25,6 +25,12 @@ def get_raw_text_arxiv(use_text=False, seed=0):
     # data.edge_index = data.adj_t.to_symmetric()
     data.adj = csr_array((torch.ones(len(data.edge_index[0])), (data.edge_index[0], data.edge_index[1]),),
                     shape=(data.num_nodes, data.num_nodes), )
+    G = nx.DiGraph(data.adj)
+    pagerank_scores = nx.pagerank(G)
+    data.pscore = torch.tensor([pagerank_scores[i] for i in range(data.num_nodes)]).float()
+    pagerank_vector = torch.tensor([pagerank_scores[i] for i in range(data.num_nodes)]).reshape(-1, 1).numpy()
+    diffusion_distance_matrix = euclidean_distances(pagerank_vector, pagerank_vector)
+    data.diffdis = torch.tensor(diffusion_distance_matrix).float()
     if not use_text:
         return data, None
     nodeidx2paperid = pd.read_csv(
