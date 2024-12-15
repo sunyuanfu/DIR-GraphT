@@ -4,7 +4,8 @@ import numpy as np
 import torch
 import random
 from scipy.sparse import csr_array
-
+import networkx as nx
+from sklearn.metrics.pairwise import euclidean_distances
 def get_raw_text_arxiv_2023(use_text=False, seed=0):
 
     torch.manual_seed(seed)
