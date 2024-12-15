@@ -3,7 +3,8 @@ import torch_geometric.transforms as T
 import torch
 import pandas as pd
 from scipy.sparse import csr_array
-
+import networkx as nx
+from sklearn.metrics.pairwise import euclidean_distances
 def get_raw_text_arxiv(use_text=False, seed=0):
 
     dataset = PygNodePropPredDataset(name='ogbn-arxiv')
