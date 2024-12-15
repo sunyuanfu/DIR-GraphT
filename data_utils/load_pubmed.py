@@ -37,6 +37,12 @@ def get_pubmed_casestudy(corrected=False, SEED=0):
     data.num_nodes = len(data_Y)
     data.adj = csr_array((torch.ones(len(data.edge_index[0])), (data.edge_index[0], data.edge_index[1]),),
                 shape=(data.num_nodes, data.num_nodes), )
+    G = nx.DiGraph(data.adj)
+    pagerank_scores = nx.pagerank(G)
+    data.pscore = torch.tensor([pagerank_scores[i] for i in range(data.num_nodes)]).float()
+    pagerank_vector = torch.tensor([pagerank_scores[i] for i in range(data.num_nodes)]).reshape(-1, 1).numpy()
+    diffusion_distance_matrix = euclidean_distances(pagerank_vector, pagerank_vector)
+    data.diffdis = torch.tensor(diffusion_distance_matrix).float()
     # split data
     node_id = np.arange(data.num_nodes)
     np.random.shuffle(node_id)
