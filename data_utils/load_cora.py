@@ -5,7 +5,8 @@ import random
 from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
 from scipy.sparse import csr_array
-
+import networkx as nx
+from sklearn.metrics.pairwise import euclidean_distances
 # return cora dataset as pytorch geometric Data object together with 60/20/20 split, and list of cora IDs
 
 
@@ -33,6 +34,12 @@ def get_cora_casestudy(SEED=0):
     data.num_nodes = len(data_Y)
     data.adj = csr_array((torch.ones(len(data.edge_index[0])), (data.edge_index[0], data.edge_index[1]),),
                     shape=(data.num_nodes, data.num_nodes), )
+    G = nx.DiGraph(data.adj)
+    pagerank_scores = nx.pagerank(G)
+    data.pscore = torch.tensor([pagerank_scores[i] for i in range(data.num_nodes)]).float()
+    pagerank_vector = torch.tensor([pagerank_scores[i] for i in range(data.num_nodes)]).reshape(-1, 1).numpy()
+    diffusion_distance_matrix = euclidean_distances(pagerank_vector, pagerank_vector)
+    data.diffdis = torch.tensor(diffusion_distance_matrix).float()
 
     # split data
     node_id = np.arange(data.num_nodes)
